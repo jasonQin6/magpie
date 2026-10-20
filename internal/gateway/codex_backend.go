@@ -1405,8 +1405,10 @@ func codexServed(base string, h http.Header, on *provider.Provider) (id, account
 }
 
 // unreadableItem is the item OpenAI's refusal names: sealed content it
-// can't verify, or an id it doesn't have ("Item with id 'rs_…' not found").
-var unreadableItem = regexp.MustCompile(`(?i)(?:encrypted content for item|item with id) '?([A-Za-z]+_[A-Za-z0-9_-]+)'?`)
+// can't verify, or an id it doesn't have ("Item with id 'rs_…' not found";
+// a relay in front of OpenAI passes its own wording, "Referenced reasoning
+// item 'rs_…' was not found or has expired").
+var unreadableItem = regexp.MustCompile(`(?i)(?:encrypted content for item|item with id|referenced reasoning item) '?([A-Za-z]+_[A-Za-z0-9_-]+)'?`)
 
 // withoutUnreadable is body without what OpenAI's refusal msg says it
 // can't read: the item it names, or the reasoning another account sealed.

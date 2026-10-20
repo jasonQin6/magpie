@@ -222,6 +222,7 @@ func TestRefusesInput(t *testing.T) {
 		{400, `{"error":{"message":"bad response status code 400 (request id: x)","type":"invalid_request_error","param":"input","code":null}}`, true},
 		{400, `{"error":{"message":"Invalid 'input[3].id'","type":"invalid_request_error","param":"input[3].id"}}`, true},
 		{400, `{"error":{"code":null,"message":"Item with id 'rs_1' not found.","param":null,"type":"invalid_request_error"}}`, true},
+		{400, `{"error":{"message":"OpenCode Go: Referenced reasoning item 'rs_1' was not found or has expired.","type":"invalid_request_error"}}`, true},
 		{400, `{"error":{"message":"bad response status code 400","type":"invalid_request_error"}}`, false},
 		{400, `{"error":{"message":"Invalid value for 'reasoning.effort'","param":"reasoning.effort"}}`, false},
 		{400, `{"error":{"message":"bad","param":"inputs"}}`, false},
@@ -230,5 +231,24 @@ func TestRefusesInput(t *testing.T) {
 		if got := refusesInput(tc.status, []byte(tc.body)); got != tc.want {
 			t.Errorf("%d %s: %v", tc.status, tc.body, got)
 		}
+	}
+}
+
+// A relay's refusal can name the item in its own words, not OpenAI's
+// ("Referenced reasoning item 'rs_…' was not found or has expired",
+// opencode.ai in front of muse-spark): the same strip has to see it.
+func TestWithoutUnreadableRelayWording(t *testing.T) {
+	body := []byte(`{"model":"m","store":false,"input":[` +
+		`{"type":"reasoning","id":"rs_18e02568274e11f10000dead","summary":[]},` +
+		`{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}]}`)
+	msg := []byte(`{"error":{"message":"OpenCode Go: Referenced reasoning item 'rs_18e02568274e11f10000dead' was not found or has expired.","type":"invalid_request_error"}}`)
+	b, ok := withoutUnreadable(body, msg)
+	if !ok {
+		t.Fatalf("the relay's refusal went unseen: %s", msg)
+	}
+	if s := string(b); strings.Contains(s, "rs_18e02568274e11f10000dead") {
+		t.Errorf("the dead item stayed: %s", s)
+	} else if !strings.Contains(s, "input_text") {
+		t.Errorf("the other items went too: %s", s)
 	}
 }
